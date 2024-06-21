@@ -1,34 +1,36 @@
 from vpython import *
 
-# Constants
 G = 6.67e-11
 RE = 6.378e6
 ME = 5.972e24
 
-# Create Earth object
-Earth = sphere(pos=vector(-RE, 0, 0), radius=RE, texture=textures.earth)
+Earth = sphere(pos=vector(-RE, 0, 0), radius=RE, texture=textures.stucco)
 Earth.m = ME
-Earth.p = Earth.m * vector(0, 0, 0)
 
-# Create satellite object
-sat = sphere(pos=vector(2 * RE, 0, 0), radius=0.03 * RE, make_trail=True)
-sat.m = 100
-sat.p = sat.m * vector(0, 5000, 0)
+def create_satellite(pos, velocity, mass, radius):
+    sat = sphere(pos=pos, radius=radius, make_trail=True)
+    sat.m = mass
+    sat.p = sat.m * velocity
+    return sat
 
-# Simulation parameters
-t = 0
-dt = 1
-
-# Simulation loop
-while t < 10000:
-    rate(400)
-    # Calculate distance between satellite and Earth
+def update_position(sat, dt):
     r = sat.pos - Earth.pos
-    # Calculate gravitational force
     F = -G * Earth.m * sat.m * norm(r) / mag(r)**2
-    # Update satellite momentum
     sat.p = sat.p + F * dt
-    # Update satellite position
     sat.pos = sat.pos + sat.p * dt / sat.m
-    # Update time
-    t = t + dt
+
+satellites = [
+    create_satellite(vector(2 * RE, 0, 0), vector(0, 5000, 0), 100, 0.03 * RE),
+    create_satellite(vector(2 * RE, 10, 15), vector(1000, 5000, 2000), 100, 0.03 * RE)
+
+]
+
+def run_simulation(satellites, duration, dt):
+    t = 0
+    while t < duration:
+        rate(400)
+        for sat in satellites:
+            update_position(sat, dt)
+        t += dt
+
+run_simulation(satellites, 10000, 1)
