@@ -4,7 +4,7 @@ G = 6.67e-11
 RE = 6.378e6
 ME = 5.972e24
 
-Earth = sphere(pos=vector(-RE, 0, 0), radius=RE, texture=textures.stucco)
+Earth = sphere(pos=vector(-RE, 0, 0), radius=RE, texture=textures.earth)
 Earth.m = ME
 
 def create_satellite(pos, velocity, mass, radius):
