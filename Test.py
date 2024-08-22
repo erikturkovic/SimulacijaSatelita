@@ -22,15 +22,12 @@ def update_position(sat, dt):
 satellites = [
     create_satellite(vector(2 * RE, 0, 0), vector(0, 5000, 0), 100, 0.03 * RE),
     create_satellite(vector(2 * RE, 10, 15), vector(1000, 5000, 2000), 100, 0.03 * RE)
-
 ]
 
-def run_simulation(satellites, duration, dt):
-    t = 0
-    while t < duration:
+def run_simulation(satellites, dt):
+    while True:
         rate(400)
         for sat in satellites:
             update_position(sat, dt)
-        t += dt
 
-run_simulation(satellites, 10000, 1)
+run_simulation(satellites, 1)
