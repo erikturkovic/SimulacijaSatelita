@@ -15,7 +15,7 @@ satellites = []
 
 @app.post("/add_satellite/")
 def add_satellite(sat: Satellite):
-    global satellites
+    global satellitess
     pos = vector(*sat.pos)
     velocity = vector(*sat.velocity)
     satellite = create_satellite(pos, velocity, sat.mass, sat.radius)
@@ -35,4 +35,4 @@ def start_simulation(duration: int, dt: float):
 def get_positions():
     return [{"pos": [sat.pos.x, sat.pos.y, sat.pos.z]} for sat in satellites]
 
-#uvicorn Test:app --reload
+#uvicorn BackendTest:app --reload
