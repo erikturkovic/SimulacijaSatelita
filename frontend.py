@@ -1,22 +1,20 @@
 import pygame
 import requests
-import math
-
+import sys
 
 WIDTH, HEIGHT = 800, 600
-EARTH_RADIUS = 50
-SATELLITE_RADIUS = 10
-ORBIT_RADIUS = 150
-CENTER = (WIDTH // 2, HEIGHT // 2)
 BACKEND_URL = "http://127.0.0.1:8000/satellite_position/"
+EARTH_RADIUS = 200
+SATELLITE_RADIUS = 10
+CENTER = (WIDTH // 2, HEIGHT // 2)
 
 pygame.init()
-screen = pygame.display.set_mode((WIDTH, HEIGHT))
+screen = pygame.display.set_mode((WIDTH, HEIGHT), pygame.RESIZABLE)
 clock = pygame.time.Clock()
 
 def get_satellite_position():
     try:
-        response = requests.post(BACKEND_URL)
+        response = requests.get(BACKEND_URL)
         data = response.json()
         return data['x'], data['y']
     except Exception as e:
@@ -28,6 +26,10 @@ while running:
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
             running = False
+        elif event.type == pygame.VIDEORESIZE:
+            WIDTH, HEIGHT = event.size
+            CENTER = (WIDTH // 2, HEIGHT // 2)
+            screen = pygame.display.set_mode((WIDTH, HEIGHT), pygame.RESIZABLE)
 
     screen.fill((0, 0, 0))
 
@@ -35,8 +37,14 @@ while running:
 
     sat_x, sat_y = get_satellite_position()
 
-    sat_pos = (CENTER[0] + sat_x, CENTER[1] + sat_y)
-    pygame.draw.circle(screen, (255, 0, 0), (int(sat_pos[0]), int(sat_pos[1])), SATELLITE_RADIUS)
+    scaled_sat_x = CENTER[0] + (sat_x - EARTH_RADIUS)
+    scaled_sat_y = CENTER[1] + (sat_y - EARTH_RADIUS)
+
+    if (scaled_sat_x < 0 or scaled_sat_x > WIDTH or 
+        scaled_sat_y < 0 or scaled_sat_y > HEIGHT):
+        print("Satellite out of bounds")
+
+    pygame.draw.circle(screen, (255, 0, 0), (int(scaled_sat_x), int(scaled_sat_y)), SATELLITE_RADIUS)
 
     pygame.display.flip()
     clock.tick(60)
