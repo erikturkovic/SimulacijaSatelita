@@ -1,23 +1,24 @@
 from fastapi import FastAPI, Query
+from fastapi.responses import FileResponse
 from pydantic import BaseModel
 import math
 import time
 from datetime import datetime, timedelta
+from pathlib import Path
 
 app = FastAPI()
 
+# Constants
+EARTH_RADIUS_KM = 6371
+EARTH_MASS_KG = 5.972e24
+EARTH_GRAVITY = 9.81
+SATELLITE_ORBIT_RADIUS_KM = EARTH_RADIUS_KM + 400
 
-EARTH_RADIUS_KM = 6371  
-EARTH_MASS_KG = 5.972e24  
-EARTH_GRAVITY = 9.81  
+TIME_SCALE = 1000
+START_TIME = datetime.utcnow()
+LAST_UPDATE_TIME = time.time()
+simulated_seconds = 0
 
-SATELLITE_ORBIT_RADIUS_KM = EARTH_RADIUS_KM + 400  
-
-
-TIME_SCALE = 1000  
-START_TIME = datetime.utcnow()  
-LAST_UPDATE_TIME = time.time() 
-simulated_seconds = 0  
 class EarthData(BaseModel):
     radius_km: float
     mass_kg: float
@@ -75,3 +76,7 @@ def set_time_scale(scale: float = Query(..., description="Multiplier for the tim
     LAST_UPDATE_TIME = current_real_time
     
     return {"message": f"Time scale set to {TIME_SCALE}"}
+
+@app.get("/earth_image/")
+async def get_earth_image():
+    return FileResponse(Path("pngs\earth.png"))
