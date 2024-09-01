@@ -27,6 +27,7 @@ class EarthData(BaseModel):
 class SatelliteData(BaseModel):
     x: float
     y: float
+    z: float  # Added z-coordinate for 3D
 
 class TimeData(BaseModel):
     current_simulated_time: str
@@ -54,7 +55,11 @@ async def get_satellite_position() -> SatelliteData:
     angle = (simulated_seconds % orbital_period) * 2 * math.pi / orbital_period
     x = SATELLITE_ORBIT_RADIUS_KM * math.cos(angle)
     y = SATELLITE_ORBIT_RADIUS_KM * math.sin(angle)
-    return SatelliteData(x=x, y=y)
+    
+
+    z = 0
+
+    return SatelliteData(x=x, y=y, z=z)
 
 @app.get("/simulated_time/")
 def get_simulated_time() -> TimeData:
@@ -79,4 +84,4 @@ def set_time_scale(scale: float = Query(..., description="Multiplier for the tim
 
 @app.get("/earth_image/")
 async def get_earth_image():
-    return FileResponse(Path("pngs\earth.png"))
+    return FileResponse(Path("pngs/earth.png"))
