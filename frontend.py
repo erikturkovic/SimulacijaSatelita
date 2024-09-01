@@ -1,11 +1,10 @@
 import pygame
 import requests
 
-
 pygame.init()
 
 WIDTH, HEIGHT = 800, 800
-WIN = pygame.display.set_mode((WIDTH, HEIGHT))
+WIN = pygame.display.set_mode((WIDTH, HEIGHT), pygame.RESIZABLE)
 pygame.display.set_caption("Earth and Satellite Simulation")
 
 WHITE = (255, 255, 255)
@@ -17,30 +16,30 @@ BUTTON_HOVER_COLOR = (170, 170, 170)
 FONT = pygame.font.SysFont("Consolas", 16)
 
 def draw_earth_and_satellite(earth_data, satellite_data, simulated_time):
+    global WIDTH, HEIGHT
     WIN.fill((0, 0, 0))
 
     earth_x = WIDTH // 2
     earth_y = HEIGHT // 2
-    earth_radius = int(earth_data['radius_km'] * 0.02)  
+    earth_radius = int(earth_data['radius_km'] * 0.02)
     pygame.draw.circle(WIN, BLUE, (earth_x, earth_y), earth_radius)
-
 
     satellite_x = int(satellite_data['x'] * 0.02 + earth_x)
     satellite_y = int(satellite_data['y'] * 0.02 + earth_y)
     pygame.draw.circle(WIN, RED, (satellite_x, satellite_y), 5)
 
-    draw_button(WIN, "Speed Up", 650, 50)
-    draw_button(WIN, "Slow Down", 650, 100)
-
     time_text = FONT.render(simulated_time, True, WHITE)
     WIN.blit(time_text, (10, 10))
+
+    draw_button(WIN, "Speed Up", 10, 50)  # Moved button to the left under the time
+    draw_button(WIN, "Slow Down", 10, 100)  # Moved button to the left under the time
 
     pygame.display.update()
 
 def draw_button(win, text, x, y):
     mouse = pygame.mouse.get_pos()
     button_rect = pygame.Rect(x, y, 120, 40)
-    
+
     if button_rect.collidepoint(mouse):
         pygame.draw.rect(win, BUTTON_HOVER_COLOR, button_rect)
     else:
@@ -60,6 +59,7 @@ def get_simulated_time():
     return response.json()['current_simulated_time']
 
 def main():
+    global WIDTH, HEIGHT
     run = True
     clock = pygame.time.Clock()
 
@@ -72,7 +72,10 @@ def main():
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 run = False
-            if event.type == pygame.MOUSEBUTTONDOWN:
+            elif event.type == pygame.VIDEORESIZE:
+                WIDTH, HEIGHT = event.w, event.h
+                WIN = pygame.display.set_mode((WIDTH, HEIGHT), pygame.RESIZABLE)
+            elif event.type == pygame.MOUSEBUTTONDOWN:
                 mouse_pos = pygame.mouse.get_pos()
                 if speed_up_button.collidepoint(mouse_pos):
                     time_scale *= 2
@@ -87,8 +90,8 @@ def main():
 
         draw_earth_and_satellite(earth_data, satellite_data, simulated_time)
 
-        speed_up_button = pygame.Rect(650, 50, 120, 40)
-        slow_down_button = pygame.Rect(650, 100, 120, 40)
+        speed_up_button = pygame.Rect(10, 50, 120, 40)
+        slow_down_button = pygame.Rect(10, 100, 120, 40)
 
     pygame.quit()
 
