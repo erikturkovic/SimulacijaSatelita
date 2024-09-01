@@ -1,66 +1,97 @@
 import pygame
 import requests
 
-INITIAL_WIDTH, INITIAL_HEIGHT = 800, 600
-EARTH_DATA_URL = "http://127.0.0.1:8000/earth_data/"
-SATELLITE_POSITION_URL = "http://127.0.0.1:8000/satellite_position/"
-DESIRED_EARTH_DIAMETER_PIXELS = 200 
-SATELLITE_RADIUS = 10
+# Initialize Pygame
+pygame.init()
 
-def fetch_earth_data():
-    try:
-        response = requests.get(EARTH_DATA_URL)
-        data = response.json()
-        return data['radius_km'], data['mass_kg'], data['gravity']
-    except Exception as e:
-        print(f"Error fetching Earth data: {e}")
-        return 0, 0, 0
+# Constants
+WIDTH, HEIGHT = 800, 800
+WIN = pygame.display.set_mode((WIDTH, HEIGHT))
+pygame.display.set_caption("Earth and Satellite Simulation")
 
-def fetch_satellite_position():
-    try:
-        response = requests.get(SATELLITE_POSITION_URL)
-        data = response.json()
-        return data['x'], data['y']
-    except Exception as e:
-        print(f"Error fetching satellite position: {e}")
-        return 0, 0
+WHITE = (255, 255, 255)
+BLUE = (100, 149, 237)
+RED = (188, 39, 50)
+BUTTON_COLOR = (200, 200, 200)
+BUTTON_HOVER_COLOR = (170, 170, 170)
 
-def km_to_pixels(km, scale_factor):
-    return km * scale_factor
+# Font
+FONT = pygame.font.SysFont("comicsans", 16)
+
+# Function to draw the earth and satellite
+def draw_earth_and_satellite(earth_data, satellite_data):
+    WIN.fill((0, 0, 0))
+    
+    # Draw Earth
+    earth_x = WIDTH // 2
+    earth_y = HEIGHT // 2
+    earth_radius = int(earth_data['radius_km'] * 0.02)  # Scale down for display purposes
+    pygame.draw.circle(WIN, BLUE, (earth_x, earth_y), earth_radius)
+
+    # Draw Satellite
+    satellite_x = int(satellite_data['x'] * 0.02 + earth_x)  # Scale down for display purposes
+    satellite_y = int(satellite_data['y'] * 0.02 + earth_y)
+    pygame.draw.circle(WIN, RED, (satellite_x, satellite_y), 5)
+
+    # Draw buttons
+    draw_button(WIN, "Speed Up", 650, 50)
+    draw_button(WIN, "Slow Down", 650, 100)
+
+    pygame.display.update()
+
+# Function to draw buttons
+def draw_button(win, text, x, y):
+    mouse = pygame.mouse.get_pos()
+    button_rect = pygame.Rect(x, y, 120, 40)
+    
+    if button_rect.collidepoint(mouse):
+        pygame.draw.rect(win, BUTTON_HOVER_COLOR, button_rect)
+    else:
+        pygame.draw.rect(win, BUTTON_COLOR, button_rect)
+
+    text_surface = FONT.render(text, True, (0, 0, 0))
+    win.blit(text_surface, (x + (120 - text_surface.get_width()) // 2, y + (40 - text_surface.get_height()) // 2))
+
+    return button_rect
+
+# Function to set time scale
+def set_time_scale(scale):
+    response = requests.post(f"http://127.0.0.1:8000/set_time_scale/?scale={scale}")
+    print(response.json())
 
 def main():
-    pygame.init()
-    screen = pygame.display.set_mode((INITIAL_WIDTH, INITIAL_HEIGHT), pygame.RESIZABLE)
+    run = True
     clock = pygame.time.Clock()
 
-    earth_radius_km, _, _ = fetch_earth_data()
-    scale_factor = DESIRED_EARTH_DIAMETER_PIXELS / (2 * earth_radius_km) 
+    # Initial time scale
+    time_scale = 1000
+    set_time_scale(time_scale)
 
-    running = True
-    while running:
+    while run:
+        clock.tick(60)
+
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
-                running = False
-            elif event.type == pygame.VIDEORESIZE:
-                WIDTH, HEIGHT = event.size
-                screen = pygame.display.set_mode((WIDTH, HEIGHT), pygame.RESIZABLE)
-                scale_factor = DESIRED_EARTH_DIAMETER_PIXELS / (2 * earth_radius_km)
+                run = False
+            if event.type == pygame.MOUSEBUTTONDOWN:
+                mouse_pos = pygame.mouse.get_pos()
+                if speed_up_button.collidepoint(mouse_pos):
+                    time_scale *= 2
+                    set_time_scale(time_scale)
+                elif slow_down_button.collidepoint(mouse_pos):
+                    time_scale /= 2
+                    set_time_scale(time_scale)
 
-        screen.fill((0, 0, 0))
+        # Fetch Earth and Satellite data from backend
+        earth_data = requests.get("http://127.0.0.1:8000/earth_data/").json()
+        satellite_data = requests.get("http://127.0.0.1:8000/satellite_position/").json()
 
+        # Draw Earth, Satellite, and Buttons
+        draw_earth_and_satellite(earth_data, satellite_data)
 
-        WIDTH, HEIGHT = screen.get_size()  
-        pygame.draw.circle(screen, (0, 0, 255), (WIDTH // 2, HEIGHT // 2), DESIRED_EARTH_DIAMETER_PIXELS // 2)
-
-        sat_x, sat_y = fetch_satellite_position()
-
-        sat_x_pixels = WIDTH // 2 + km_to_pixels(sat_x, scale_factor)
-        sat_y_pixels = HEIGHT // 2 + km_to_pixels(sat_y, scale_factor)
-
-        pygame.draw.circle(screen, (255, 0, 0), (int(sat_x_pixels), int(sat_y_pixels)), SATELLITE_RADIUS)
-
-        pygame.display.flip()
-        clock.tick(60)
+        # Update button positions (must match the draw_button calls)
+        speed_up_button = pygame.Rect(650, 50, 120, 40)
+        slow_down_button = pygame.Rect(650, 100, 120, 40)
 
     pygame.quit()
 
