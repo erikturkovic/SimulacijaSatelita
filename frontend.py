@@ -15,6 +15,9 @@ BUTTON_HOVER_COLOR = (170, 170, 170)
 
 FONT = pygame.font.SysFont("Consolas", 16)
 
+VIEW_DISTANCE = 500
+DEFAULT_TIME_SCALE = 1
+
 def draw_earth_and_satellite(earth_data, satellite_data, simulated_time):
     global WIDTH, HEIGHT
     WIN.fill((0, 0, 0))
@@ -24,15 +27,22 @@ def draw_earth_and_satellite(earth_data, satellite_data, simulated_time):
     earth_radius = int(earth_data['radius_km'] * 0.02)
     pygame.draw.circle(WIN, BLUE, (earth_x, earth_y), earth_radius)
 
-    satellite_x = int(satellite_data['x'] * 0.02 + earth_x)
-    satellite_y = int(satellite_data['y'] * 0.02 + earth_y)
-    pygame.draw.circle(WIN, RED, (satellite_x, satellite_y), 5)
+    x = satellite_data['x']
+    y = satellite_data['y']
+    z = satellite_data['z']
+
+    scale = VIEW_DISTANCE / (VIEW_DISTANCE + z)
+    satellite_screen_x = int(earth_x + x * scale * 0.02)
+    satellite_screen_y = int(earth_y - y * scale * 0.02) 
+
+    pygame.draw.circle(WIN, RED, (satellite_screen_x, satellite_screen_y), 5)
 
     time_text = FONT.render(simulated_time, True, WHITE)
     WIN.blit(time_text, (10, 10))
 
-    draw_button(WIN, "Speed Up", 10, 50)  # Moved button to the left under the time
-    draw_button(WIN, "Slow Down", 10, 100)  # Moved button to the left under the time
+    draw_button(WIN, "Speed Up", 10, 50)
+    draw_button(WIN, "Slow Down", 10, 100)
+    real_time_button = draw_button(WIN, "Real Time", 10, 150)  
 
     pygame.display.update()
 
@@ -63,7 +73,7 @@ def main():
     run = True
     clock = pygame.time.Clock()
 
-    time_scale = 1000
+    time_scale = DEFAULT_TIME_SCALE
     set_time_scale(time_scale)
 
     while run:
@@ -83,6 +93,9 @@ def main():
                 elif slow_down_button.collidepoint(mouse_pos):
                     time_scale /= 2
                     set_time_scale(time_scale)
+                elif real_time_button.collidepoint(mouse_pos):  
+                    time_scale = DEFAULT_TIME_SCALE
+                    set_time_scale(time_scale)
 
         earth_data = requests.get("http://127.0.0.1:8000/earth_data/").json()
         satellite_data = requests.get("http://127.0.0.1:8000/satellite_position/").json()
@@ -92,7 +105,7 @@ def main():
 
         speed_up_button = pygame.Rect(10, 50, 120, 40)
         slow_down_button = pygame.Rect(10, 100, 120, 40)
-
+        real_time_button = pygame.Rect(10, 150, 120, 40)  
     pygame.quit()
 
 if __name__ == "__main__":
