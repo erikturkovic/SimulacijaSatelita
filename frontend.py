@@ -102,7 +102,7 @@ def draw_button(win, text, button_rect):
 
 def set_time_scale(scale):
     try:
-        response = requests.post(f"http://127.0.0.1:8000/set_time_scale/?scale={scale}")
+        response = requests.post(f"http://127.0.0.1:8001/set_time_scale/?scale={scale}")
         response.raise_for_status()
         print(response.json())
     except requests.RequestException as e:
@@ -110,7 +110,7 @@ def set_time_scale(scale):
 
 def get_simulated_time():
     try:
-        response = requests.get("http://127.0.0.1:8000/simulated_time/")
+        response = requests.get("http://127.0.0.1:8001/simulated_time/")
         response.raise_for_status()
         return response.json()['current_simulated_time']
     except requests.RequestException as e:
@@ -165,8 +165,8 @@ def main():
                             earth_scale -= 0.1
 
         try:
-            earth_data = requests.get("http://127.0.0.1:8000/earth_data/").json()
-            satellites_data = requests.get("http://127.0.0.1:8000/satellite_positions/").json()
+            earth_data = requests.get("http://127.0.0.1:8001/earth_data/").json()
+            satellites_data = requests.get("http://127.0.0.1:8001/satellite_positions/").json()
             simulated_time = get_simulated_time()
         except requests.RequestException as e:
             print(f"Error fetching data: {e}")
