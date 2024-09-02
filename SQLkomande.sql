@@ -51,12 +51,12 @@ VALUES (
 ALTER TABLE satellites
 ADD COLUMN direction INTEGER NOT NULL DEFAULT 1;
 
-INSERT INTO satellites (name, x, y, z, orbital_period, direction)
+
+INSERT INTO satellites (name, x, y, z, orbital_period)
 VALUES (
-    'Moon',
-    384400,  
+    'MECHA',
+    12000,  
     0,
     0,
-    2360592,  
-    1  
+    7000
 );

@@ -127,7 +127,7 @@ def main():
     set_time_scale(time_scale)
 
     earth_image = pygame.image.load("pngs/earth.png") 
-    earth_image = pygame.transform.scale(earth_image, (530, 390))
+    earth_image = pygame.transform.scale(earth_image, (640, 640))
 
     buttons = [
         {"text": "Speed Up", "rect": pygame.Rect(10, 100, 120, 40)},
