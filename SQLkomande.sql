@@ -60,3 +60,25 @@ VALUES (
     0,
     7000
 );
+
+INSERT INTO satellites (name, x, y, z, orbital_period, direction)
+VALUES (
+    'Moon',
+    384400,  
+    0,
+    0,
+    2360592,  
+    1  
+);
+
+ALTER TABLE satellites ADD COLUMN orbit_type TEXT DEFAULT 'XY';
+
+INSERT INTO satellites (name, x, y, z, orbital_period, direction, orbit_type)
+VALUES ('XZ', 7000, 0, 0, 5400, 1, 'XZ');
+
+INSERT INTO satellites (name, x, y, z, orbital_period, direction, orbit_type)
+VALUES ('XY', 7000, 0, 0, 5400, 1, 'XY');
+
+
+INSERT INTO satellites (name, x, y, z, orbital_period, direction, orbit_type)
+VALUES ('YZ', 0, 7000, 0, 5400, 1, 'YZ');

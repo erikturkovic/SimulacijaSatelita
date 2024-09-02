@@ -32,7 +32,7 @@ def get_all_satellites_from_db():
     try:
         conn = sqlite3.connect(DATABASE_PATH)
         cursor = conn.cursor()
-        cursor.execute("SELECT name, x, y, z, orbital_period, direction FROM satellites")
+        cursor.execute("SELECT name, x, y, z, orbital_period, direction, orbit_type FROM satellites")
         satellites = cursor.fetchall()
         conn.close()
         return satellites
@@ -61,13 +61,26 @@ async def get_satellite_positions() -> list[SatelliteData]:
     LAST_UPDATE_TIME = current_real_time
 
     for satellite in satellites:
-        name, x_initial, y_initial, z_initial, orbital_period, direction = satellite
+        name, x_initial, y_initial, z_initial, orbital_period, direction, orbit_type = satellite
 
         angle = direction * (simulated_seconds % orbital_period) * 2 * math.pi / orbital_period
 
-        x = x_initial * math.cos(angle) - y_initial * math.sin(angle)
-        y = x_initial * math.sin(angle) + y_initial * math.cos(angle)
-        z = z_initial  
+        if orbit_type == 'XY':
+            x = x_initial * math.cos(angle) - y_initial * math.sin(angle)
+            y = x_initial * math.sin(angle) + y_initial * math.cos(angle)
+            z = z_initial
+        elif orbit_type == 'XZ':
+            x = x_initial * math.cos(angle) - z_initial * math.sin(angle)
+            y = y_initial * math.cos(angle) - z_initial * math.sin(angle)
+            z = z_initial
+        elif orbit_type == 'YZ':
+            x = x_initial * math.sin(angle) + y_initial * math.cos(angle)
+            y = y_initial * math.cos(angle) - z_initial * math.sin(angle)
+            z = z_initial
+        else:
+            x = x_initial * math.cos(angle) - y_initial * math.sin(angle)
+            y = x_initial * math.sin(angle) + y_initial * math.cos(angle)
+            z = z_initial
 
         satellite_positions.append(SatelliteData(name=name, x=x, y=y, z=z))
 
