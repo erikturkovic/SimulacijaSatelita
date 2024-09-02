@@ -19,16 +19,23 @@ VIEW_DISTANCE = 500
 DEFAULT_TIME_SCALE = 1
 DEFAULT_EARTH_SCALE = 1.0
 
-def draw_earth_and_satellite(earth_data, satellite_data, simulated_time, buttons, earth_scale, time_scale):
+def draw_earth_and_satellite(earth_image, earth_data, satellite_data, simulated_time, buttons, earth_scale, time_scale):
     global WIDTH, HEIGHT
     WIN.fill((0, 0, 0))
 
     earth_x = WIDTH // 2
     earth_y = HEIGHT // 2
+
     actual_earth_radius = earth_data['radius_km']
     scaled_earth_radius = actual_earth_radius * earth_scale
     display_earth_radius = int(scaled_earth_radius * 0.02)
+
+    image_size = int(display_earth_radius * 2)
+    scaled_image = pygame.transform.scale(earth_image, (image_size, image_size))
+
     pygame.draw.circle(WIN, BLUE, (earth_x, earth_y), display_earth_radius)
+    image_rect = scaled_image.get_rect(center=(earth_x, earth_y))
+    WIN.blit(scaled_image, image_rect)
 
     x = satellite_data['x']
     y = satellite_data['y']
@@ -54,9 +61,6 @@ def draw_earth_and_satellite(earth_data, satellite_data, simulated_time, buttons
         draw_button(WIN, button['text'], button['rect'])
 
     pygame.display.update()
-
-
-
 
 def draw_button(win, text, button_rect):
     mouse = pygame.mouse.get_pos()
@@ -96,6 +100,9 @@ def main():
     earth_scale = DEFAULT_EARTH_SCALE
     set_time_scale(time_scale)
 
+    earth_image = pygame.image.load("pngs\earth.png") 
+    earth_image = pygame.transform.scale(earth_image, (530, 390))
+
     buttons = [
         {"text": "Speed Up", "rect": pygame.Rect(10, 100, 120, 40)},
         {"text": "Slow Down", "rect": pygame.Rect(10, 150, 120, 40)},
@@ -127,9 +134,9 @@ def main():
                             time_scale = DEFAULT_TIME_SCALE
                             set_time_scale(time_scale)
                         elif button['text'] == "Increase Size":
-                            earth_scale += 0.1  
+                            earth_scale += 0.1
                         elif button['text'] == "Decrease Size":
-                            earth_scale -= 0.1  
+                            earth_scale -= 0.1
 
         try:
             earth_data = requests.get("http://127.0.0.1:8000/earth_data/").json()
@@ -141,9 +148,10 @@ def main():
             satellite_data = {"x": 0, "y": 0, "z": 0}
             simulated_time = "Error"
 
-        draw_earth_and_satellite(earth_data, satellite_data, simulated_time, buttons, earth_scale, time_scale)
+        draw_earth_and_satellite(earth_image, earth_data, satellite_data, simulated_time, buttons, earth_scale, time_scale)
 
     pygame.quit()
 
 if __name__ == "__main__":
     main()
+
