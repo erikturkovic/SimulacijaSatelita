@@ -18,6 +18,7 @@ FONT = pygame.font.SysFont("Consolas", 16)
 VIEW_DISTANCE = 1
 DEFAULT_TIME_SCALE = 1
 DEFAULT_EARTH_SCALE = 1.0
+MIN_EARTH_SCALE = 0.1
 
 satellite_colors = {}
 backend_ports = range(8001, 8006)
@@ -53,9 +54,15 @@ def draw_earth_and_satellites(earth_image, earth_data, all_satellites_data, simu
     image_rect = scaled_image.get_rect(center=(earth_x, earth_y))
     WIN.blit(scaled_image, image_rect)
 
+    displayed_satellites = set()
+
     for satellites_data in all_satellites_data:
         for satellite_data in satellites_data:
             name = satellite_data['name']
+
+            if name in displayed_satellites:
+                continue
+
             x = satellite_data['x']
             y = satellite_data['y']
             z = satellite_data['z']
@@ -70,6 +77,8 @@ def draw_earth_and_satellites(earth_image, earth_data, all_satellites_data, simu
             satellite_screen_y = int(earth_y - y * scale * 0.02 * earth_scale)
 
             pygame.draw.circle(WIN, color, (satellite_screen_x, satellite_screen_y), 5)
+
+            displayed_satellites.add(name)
 
     time_text = FONT.render(f"Simulated Time: {simulated_time}", True, WHITE)
     scale_text = FONT.render(f"Earth Radius: {scaled_earth_radius:.2f} km", True, WHITE)
@@ -87,14 +96,12 @@ def draw_earth_and_satellites(earth_image, earth_data, all_satellites_data, simu
     WIN.blit(title_text, (list_x, list_y))
     list_y += 30
 
-    for satellites_data in all_satellites_data:
-        for satellite_data in satellites_data:
-            name = satellite_data['name']
-            color = satellite_colors[name]
-            pygame.draw.circle(WIN, color, (list_x - 20, list_y + 10), 5)
-            name_text = FONT.render(name, True, WHITE)
-            WIN.blit(name_text, (list_x, list_y))
-            list_y += 20
+    for satellite_name in displayed_satellites:
+        color = satellite_colors[satellite_name]
+        pygame.draw.circle(WIN, color, (list_x - 20, list_y + 10), 5)
+        name_text = FONT.render(satellite_name, True, WHITE)
+        WIN.blit(name_text, (list_x, list_y))
+        list_y += 20
 
     for button in buttons:
         draw_button(WIN, button['text'], button['rect'])
@@ -167,7 +174,7 @@ def main():
                         elif button['text'] == "Increase Size":
                             earth_scale += 0.1
                         elif button['text'] == "Decrease Size":
-                            earth_scale -= 0.1
+                             earth_scale = max(earth_scale - 0.1, MIN_EARTH_SCALE)
 
         try:
             earth_data, _ = fetch_from_backend("earth_data/")
