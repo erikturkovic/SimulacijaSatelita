@@ -1,5 +1,6 @@
 import pygame
 import requests
+import random
 
 pygame.init()
 
@@ -9,7 +10,6 @@ pygame.display.set_caption("Earth and Satellite Simulation")
 
 WHITE = (255, 255, 255)
 BLUE = (100, 149, 237)
-RED = (188, 39, 50)
 BUTTON_COLOR = (200, 200, 200)
 BUTTON_HOVER_COLOR = (170, 170, 170)
 
@@ -19,7 +19,12 @@ VIEW_DISTANCE = 500
 DEFAULT_TIME_SCALE = 1
 DEFAULT_EARTH_SCALE = 1.0
 
-def draw_earth_and_satellite(earth_image, earth_data, satellite_data, simulated_time, buttons, earth_scale, time_scale):
+satellite_colors = {}
+
+def get_random_color():
+    return (random.randint(0, 255), random.randint(0, 255), random.randint(0, 255))
+
+def draw_earth_and_satellites(earth_image, earth_data, satellites_data, simulated_time, buttons, earth_scale, time_scale):
     global WIDTH, HEIGHT
     WIN.fill((0, 0, 0))
 
@@ -37,15 +42,22 @@ def draw_earth_and_satellite(earth_image, earth_data, satellite_data, simulated_
     image_rect = scaled_image.get_rect(center=(earth_x, earth_y))
     WIN.blit(scaled_image, image_rect)
 
-    x = satellite_data['x']
-    y = satellite_data['y']
-    z = satellite_data['z']
+    for satellite_data in satellites_data:
+        name = satellite_data['name']
+        x = satellite_data['x']
+        y = satellite_data['y']
+        z = satellite_data['z']
 
-    scale = VIEW_DISTANCE / (VIEW_DISTANCE + z)
-    satellite_screen_x = int(earth_x + x * scale * 0.02 * earth_scale)
-    satellite_screen_y = int(earth_y - y * scale * 0.02 * earth_scale)
+        if name not in satellite_colors:
+            satellite_colors[name] = get_random_color()
 
-    pygame.draw.circle(WIN, RED, (satellite_screen_x, satellite_screen_y), 5)
+        color = satellite_colors[name]
+
+        scale = VIEW_DISTANCE / (VIEW_DISTANCE + z)
+        satellite_screen_x = int(earth_x + x * scale * 0.02 * earth_scale)
+        satellite_screen_y = int(earth_y - y * scale * 0.02 * earth_scale)
+
+        pygame.draw.circle(WIN, color, (satellite_screen_x, satellite_screen_y), 5)
 
     time_text = FONT.render(f"Simulated Time: {simulated_time}", True, WHITE)
     scale_text = FONT.render(f"Earth Radius: {scaled_earth_radius:.2f} km", True, WHITE)
@@ -56,6 +68,20 @@ def draw_earth_and_satellite(earth_image, earth_data, satellite_data, simulated_
     WIN.blit(time_text, (text_x, text_y))
     WIN.blit(scale_text, (text_x, text_y + 20))
     WIN.blit(speed_text, (text_x, text_y + 40))
+
+    list_x = WIDTH - 200
+    list_y = 10
+    title_text = FONT.render("Satellites:", True, WHITE)
+    WIN.blit(title_text, (list_x, list_y))
+    list_y += 30
+
+    for satellite_data in satellites_data:
+        name = satellite_data['name']
+        color = satellite_colors[name]
+        pygame.draw.circle(WIN, color, (list_x - 20, list_y + 10), 5)
+        name_text = FONT.render(name, True, WHITE)
+        WIN.blit(name_text, (list_x, list_y))
+        list_y += 20
 
     for button in buttons:
         draw_button(WIN, button['text'], button['rect'])
@@ -100,7 +126,7 @@ def main():
     earth_scale = DEFAULT_EARTH_SCALE
     set_time_scale(time_scale)
 
-    earth_image = pygame.image.load("pngs\earth.png") 
+    earth_image = pygame.image.load("pngs/earth.png") 
     earth_image = pygame.transform.scale(earth_image, (530, 390))
 
     buttons = [
@@ -140,18 +166,17 @@ def main():
 
         try:
             earth_data = requests.get("http://127.0.0.1:8000/earth_data/").json()
-            satellite_data = requests.get("http://127.0.0.1:8000/satellite_position/").json()
+            satellites_data = requests.get("http://127.0.0.1:8000/satellite_positions/").json()
             simulated_time = get_simulated_time()
         except requests.RequestException as e:
             print(f"Error fetching data: {e}")
             earth_data = {"radius_km": 6371}
-            satellite_data = {"x": 0, "y": 0, "z": 0}
+            satellites_data = [{"name": "Unknown", "x": 0, "y": 0, "z": 0}]
             simulated_time = "Error"
 
-        draw_earth_and_satellite(earth_image, earth_data, satellite_data, simulated_time, buttons, earth_scale, time_scale)
+        draw_earth_and_satellites(earth_image, earth_data, satellites_data, simulated_time, buttons, earth_scale, time_scale)
 
     pygame.quit()
 
 if __name__ == "__main__":
     main()
-

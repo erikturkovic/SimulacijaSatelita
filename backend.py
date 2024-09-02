@@ -4,7 +4,6 @@ import math
 import time
 from datetime import datetime, timedelta
 import sqlite3
-import logging
 
 app = FastAPI()
 
@@ -13,10 +12,7 @@ TIME_SCALE = 1000
 START_TIME = datetime.utcnow()
 LAST_UPDATE_TIME = time.time()
 simulated_seconds = 0
-
 DATABASE_PATH = "database.db"
-
-logging.basicConfig(level=logging.INFO)
 
 class EarthData(BaseModel):
     radius_km: float
@@ -24,6 +20,7 @@ class EarthData(BaseModel):
     gravity: float
 
 class SatelliteData(BaseModel):
+    name: str
     x: float
     y: float
     z: float
@@ -31,22 +28,15 @@ class SatelliteData(BaseModel):
 class TimeData(BaseModel):
     current_simulated_time: str
 
-def get_satellite_from_db():
-    """Fetch the satellite's data including the orbital period from the database."""
+def get_all_satellites_from_db():
     try:
         conn = sqlite3.connect(DATABASE_PATH)
         cursor = conn.cursor()
-        cursor.execute("SELECT x, y, z, orbital_period FROM satellites WHERE id = 1")
-        satellite = cursor.fetchone()
+        cursor.execute("SELECT name, x, y, z, orbital_period, direction FROM satellites")
+        satellites = cursor.fetchall()
         conn.close()
-        if satellite:
-            logging.info(f"Fetched satellite data from DB: {satellite}")
-            return satellite
-        else:
-            logging.error("Satellite not found in the database.")
-            raise HTTPException(status_code=404, detail="Satellite not found in the database.")
+        return satellites
     except sqlite3.Error as e:
-        logging.error(f"Database error: {e}")
         raise HTTPException(status_code=500, detail=f"Database error: {e}")
 
 @app.get("/earth_data/")
@@ -57,32 +47,31 @@ def get_earth_data() -> EarthData:
         gravity=9.81
     )
 
-@app.get("/satellite_position/")
-async def get_satellite_position() -> SatelliteData:
+@app.get("/satellite_positions/")
+async def get_satellite_positions() -> list[SatelliteData]:
     global simulated_seconds, LAST_UPDATE_TIME
     
-    satellite = get_satellite_from_db()
-    if satellite is None:
-        raise HTTPException(status_code=404, detail="Satellite not found.")
+    satellites = get_all_satellites_from_db()
     
-    x_initial, y_initial, z_initial, orbital_period = satellite
-
+    satellite_positions = []
 
     current_real_time = time.time()
     delta_real_time = current_real_time - LAST_UPDATE_TIME
     simulated_seconds += delta_real_time * TIME_SCALE
     LAST_UPDATE_TIME = current_real_time
 
+    for satellite in satellites:
+        name, x_initial, y_initial, z_initial, orbital_period, direction = satellite
 
-    angle = (simulated_seconds % orbital_period) * 2 * math.pi / orbital_period
+        angle = direction * (simulated_seconds % orbital_period) * 2 * math.pi / orbital_period
 
-    x = (EARTH_RADIUS_KM + 400) * math.cos(angle)
-    y = (EARTH_RADIUS_KM + 400) * math.sin(angle)
-    z = z_initial 
+        x = (EARTH_RADIUS_KM + 400) * math.cos(angle)
+        y = (EARTH_RADIUS_KM + 400) * math.sin(angle)
+        z = z_initial
 
-    logging.info(f"Returning satellite position: x={x}, y={y}, z={z}, orbital_period={orbital_period}")
+        satellite_positions.append(SatelliteData(name=name, x=x, y=y, z=z))
 
-    return SatelliteData(x=x, y=y, z=z)
+    return satellite_positions
 
 @app.get("/simulated_time/")
 def get_simulated_time() -> TimeData:

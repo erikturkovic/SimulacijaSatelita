@@ -24,3 +24,39 @@ VALUES (
 UPDATE satellites
 SET orbital_period = 5400 
 WHERE id = 1;  
+
+
+INSERT INTO satellites (name, x, y, z, orbital_period)
+VALUES (
+    'SOPRANO',
+    7000,  
+    0,
+    0,
+    3600
+);
+
+UPDATE satellites
+SET direction = -1  
+WHERE name = 'SOPRANO';
+
+INSERT INTO satellites (name, x, y, z, orbital_period)
+VALUES (
+    'TEST',
+    8000,  
+    0,
+    0,
+    4000
+);
+
+ALTER TABLE satellites
+ADD COLUMN direction INTEGER NOT NULL DEFAULT 1;
+
+INSERT INTO satellites (name, x, y, z, orbital_period, direction)
+VALUES (
+    'Moon',
+    384400,  
+    0,
+    0,
+    2360592,  
+    1  
+);
