@@ -12,6 +12,7 @@ WHITE = (255, 255, 255)
 BLUE = (100, 149, 237)
 BUTTON_COLOR = (200, 200, 200)
 BUTTON_HOVER_COLOR = (170, 170, 170)
+INSTANCE_BUTTON_COLOR = (200, 200, 200)
 
 FONT = pygame.font.SysFont("Consolas", 16)
 
@@ -104,17 +105,17 @@ def draw_earth_and_satellites(earth_image, earth_data, all_satellites_data, simu
         list_y += 20
 
     for button in buttons:
-        draw_button(WIN, button['text'], button['rect'])
+        draw_button(WIN, button['text'], button['rect'], button['color'])
 
     pygame.display.update()
 
-def draw_button(win, text, button_rect):
+def draw_button(win, text, button_rect, color):
     mouse = pygame.mouse.get_pos()
 
     if button_rect.collidepoint(mouse):
         pygame.draw.rect(win, BUTTON_HOVER_COLOR, button_rect)
     else:
-        pygame.draw.rect(win, BUTTON_COLOR, button_rect)
+        pygame.draw.rect(win, color, button_rect)
 
     text_surface = FONT.render(text, True, (0, 0, 0))
     win.blit(text_surface, (button_rect.x + (button_rect.width - text_surface.get_width()) // 2,
@@ -142,12 +143,22 @@ def main():
     earth_image = pygame.transform.scale(earth_image, (640, 640))
 
     buttons = [
-        {"text": "Speed Up", "rect": pygame.Rect(10, 100, 120, 40)},
-        {"text": "Slow Down", "rect": pygame.Rect(10, 150, 120, 40)},
-        {"text": "Real Time", "rect": pygame.Rect(10, 200, 120, 40)},
-        {"text": "Increase Size", "rect": pygame.Rect(10, 250, 120, 40)},
-        {"text": "Decrease Size", "rect": pygame.Rect(10, 300, 120, 40)}
+        {"text": "Speed Up", "rect": pygame.Rect(10, 100, 120, 40), "color": BUTTON_COLOR},
+        {"text": "Slow Down", "rect": pygame.Rect(10, 150, 120, 40), "color": BUTTON_COLOR},
+        {"text": "Real Time", "rect": pygame.Rect(10, 200, 120, 40), "color": BUTTON_COLOR},
+        {"text": "Increase Size", "rect": pygame.Rect(10, 250, 120, 40), "color": BUTTON_COLOR},
+        {"text": "Decrease Size", "rect": pygame.Rect(10, 300, 120, 40), "color": BUTTON_COLOR},
     ]
+
+    instance_buttons = [
+        {"text": "1", "rect": pygame.Rect(10, HEIGHT - 60, 40, 40), "color": INSTANCE_BUTTON_COLOR},
+        {"text": "2", "rect": pygame.Rect(60, HEIGHT - 60, 40, 40), "color": INSTANCE_BUTTON_COLOR},
+        {"text": "3", "rect": pygame.Rect(110, HEIGHT - 60, 40, 40), "color": INSTANCE_BUTTON_COLOR},
+        {"text": "4", "rect": pygame.Rect(160, HEIGHT - 60, 40, 40), "color": INSTANCE_BUTTON_COLOR},
+        {"text": "5", "rect": pygame.Rect(210, HEIGHT - 60, 40, 40), "color": INSTANCE_BUTTON_COLOR},
+    ]
+
+    buttons.extend(instance_buttons)
 
     while run:
         clock.tick(60)
@@ -158,6 +169,8 @@ def main():
             elif event.type == pygame.VIDEORESIZE:
                 WIDTH, HEIGHT = event.w, event.h
                 WIN = pygame.display.set_mode((WIDTH, HEIGHT), pygame.RESIZABLE)
+                for i, button in enumerate(instance_buttons):
+                    button['rect'].y = HEIGHT - 60
             elif event.type == pygame.MOUSEBUTTONDOWN:
                 mouse_pos = pygame.mouse.get_pos()
                 for button in buttons:
@@ -174,7 +187,10 @@ def main():
                         elif button['text'] == "Increase Size":
                             earth_scale += 0.1
                         elif button['text'] == "Decrease Size":
-                             earth_scale = max(earth_scale - 0.1, MIN_EARTH_SCALE)
+                            earth_scale = max(earth_scale - 0.1, MIN_EARTH_SCALE)
+                        elif button['text'] in {"1", "2", "3", "4", "5"}:
+                            button['color'] = (100, 100, 100)
+                            print(f"Instance {button['text']} button clicked.")
 
         try:
             earth_data, _ = fetch_from_backend("earth_data/")
