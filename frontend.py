@@ -1,6 +1,7 @@
 import pygame
 import requests
 import random
+import time
 
 pygame.init()
 
@@ -22,20 +23,29 @@ DEFAULT_EARTH_SCALE = 1.0
 MIN_EARTH_SCALE = 0.1
 
 satellite_colors = {}
-backend_ports = range(8001, 8006)
+backend_ports = list(range(8001, 8006))  
+active_ports = set(backend_ports)  #
 
 def get_random_color():
     return (random.randint(0, 255), random.randint(0, 255), random.randint(0, 255))
 
-def fetch_from_backend(endpoint):
-    for port in backend_ports:
+def fetch_from_all_backends(endpoint):
+    global active_ports
+    data = None
+    for port in list(active_ports):
         try:
-            response = requests.get(f"http://127.0.0.1:{port}/{endpoint}")
+            response = requests.get(f"http://127.0.0.1:{port}/{endpoint}", timeout=5)
             response.raise_for_status()
-            return response.json(), port
+            data = response.json() 
         except requests.RequestException as e:
             print(f"Error fetching data from port {port}: {e}")
-    return None, None
+            active_ports.discard(port)  
+
+    if data is None:
+        raise Exception(f"Failed to fetch {endpoint} from all backends.")
+    
+    return data
+
 
 def draw_earth_and_satellites(earth_image, earth_data, all_satellites_data, simulated_time, buttons, earth_scale, time_scale):
     global WIDTH, HEIGHT
@@ -122,13 +132,15 @@ def draw_button(win, text, button_rect, color):
                             button_rect.y + (button_rect.height - text_surface.get_height()) // 2))
 
 def set_time_scale(scale):
-    for port in backend_ports:
+    global active_ports
+    for port in list(active_ports):
         try:
             response = requests.post(f"http://127.0.0.1:{port}/set_time_scale/?scale={scale}")
             response.raise_for_status()
             print(f"Time scale set on port {port}")
         except requests.RequestException as e:
             print(f"Error setting time scale on port {port}: {e}")
+            active_ports.discard(port)
 
 def main():
     global WIDTH, HEIGHT
@@ -193,14 +205,14 @@ def main():
                             print(f"Instance {button['text']} button clicked.")
 
         try:
-            earth_data, _ = fetch_from_backend("earth_data/")
+            earth_data = fetch_from_all_backends("earth_data/")
             all_satellites_data = []
-            for port in backend_ports:
-                satellites_data, _ = fetch_from_backend(f"satellite_positions/")
+            for port in active_ports:
+                satellites_data = fetch_from_all_backends(f"satellite_positions/")
                 if satellites_data:
                     all_satellites_data.append(satellites_data)
 
-            simulated_time, _ = fetch_from_backend("simulated_time/")
+            simulated_time = fetch_from_all_backends("simulated_time/")
             simulated_time = simulated_time['current_simulated_time']
         except Exception as e:
             print(f"Error: {e}")
