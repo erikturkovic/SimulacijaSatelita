@@ -20,11 +20,22 @@ DEFAULT_TIME_SCALE = 1
 DEFAULT_EARTH_SCALE = 1.0
 
 satellite_colors = {}
+backend_ports = range(8001, 8006)
 
 def get_random_color():
     return (random.randint(0, 255), random.randint(0, 255), random.randint(0, 255))
 
-def draw_earth_and_satellites(earth_image, earth_data, satellites_data, simulated_time, buttons, earth_scale, time_scale):
+def fetch_from_backend(endpoint):
+    for port in backend_ports:
+        try:
+            response = requests.get(f"http://127.0.0.1:{port}/{endpoint}")
+            response.raise_for_status()
+            return response.json(), port
+        except requests.RequestException as e:
+            print(f"Error fetching data from port {port}: {e}")
+    return None, None
+
+def draw_earth_and_satellites(earth_image, earth_data, all_satellites_data, simulated_time, buttons, earth_scale, time_scale):
     global WIDTH, HEIGHT
     WIN.fill((0, 0, 0))
 
@@ -42,22 +53,23 @@ def draw_earth_and_satellites(earth_image, earth_data, satellites_data, simulate
     image_rect = scaled_image.get_rect(center=(earth_x, earth_y))
     WIN.blit(scaled_image, image_rect)
 
-    for satellite_data in satellites_data:
-        name = satellite_data['name']
-        x = satellite_data['x']
-        y = satellite_data['y']
-        z = satellite_data['z']
+    for satellites_data in all_satellites_data:
+        for satellite_data in satellites_data:
+            name = satellite_data['name']
+            x = satellite_data['x']
+            y = satellite_data['y']
+            z = satellite_data['z']
 
-        if name not in satellite_colors:
-            satellite_colors[name] = get_random_color()
+            if name not in satellite_colors:
+                satellite_colors[name] = get_random_color()
 
-        color = satellite_colors[name]
+            color = satellite_colors[name]
 
-        scale = VIEW_DISTANCE / (VIEW_DISTANCE + z)
-        satellite_screen_x = int(earth_x + x * scale * 0.02 * earth_scale)
-        satellite_screen_y = int(earth_y - y * scale * 0.02 * earth_scale)
+            scale = VIEW_DISTANCE / (VIEW_DISTANCE + z)
+            satellite_screen_x = int(earth_x + x * scale * 0.02 * earth_scale)
+            satellite_screen_y = int(earth_y - y * scale * 0.02 * earth_scale)
 
-        pygame.draw.circle(WIN, color, (satellite_screen_x, satellite_screen_y), 5)
+            pygame.draw.circle(WIN, color, (satellite_screen_x, satellite_screen_y), 5)
 
     time_text = FONT.render(f"Simulated Time: {simulated_time}", True, WHITE)
     scale_text = FONT.render(f"Earth Radius: {scaled_earth_radius:.2f} km", True, WHITE)
@@ -75,13 +87,14 @@ def draw_earth_and_satellites(earth_image, earth_data, satellites_data, simulate
     WIN.blit(title_text, (list_x, list_y))
     list_y += 30
 
-    for satellite_data in satellites_data:
-        name = satellite_data['name']
-        color = satellite_colors[name]
-        pygame.draw.circle(WIN, color, (list_x - 20, list_y + 10), 5)
-        name_text = FONT.render(name, True, WHITE)
-        WIN.blit(name_text, (list_x, list_y))
-        list_y += 20
+    for satellites_data in all_satellites_data:
+        for satellite_data in satellites_data:
+            name = satellite_data['name']
+            color = satellite_colors[name]
+            pygame.draw.circle(WIN, color, (list_x - 20, list_y + 10), 5)
+            name_text = FONT.render(name, True, WHITE)
+            WIN.blit(name_text, (list_x, list_y))
+            list_y += 20
 
     for button in buttons:
         draw_button(WIN, button['text'], button['rect'])
@@ -101,21 +114,13 @@ def draw_button(win, text, button_rect):
                             button_rect.y + (button_rect.height - text_surface.get_height()) // 2))
 
 def set_time_scale(scale):
-    try:
-        response = requests.post(f"http://127.0.0.1:8001/set_time_scale/?scale={scale}")
-        response.raise_for_status()
-        print(response.json())
-    except requests.RequestException as e:
-        print(f"Error setting time scale: {e}")
-
-def get_simulated_time():
-    try:
-        response = requests.get("http://127.0.0.1:8001/simulated_time/")
-        response.raise_for_status()
-        return response.json()['current_simulated_time']
-    except requests.RequestException as e:
-        print(f"Error getting simulated time: {e}")
-        return "Error"
+    for port in backend_ports:
+        try:
+            response = requests.post(f"http://127.0.0.1:{port}/set_time_scale/?scale={scale}")
+            response.raise_for_status()
+            print(f"Time scale set on port {port}")
+        except requests.RequestException as e:
+            print(f"Error setting time scale on port {port}: {e}")
 
 def main():
     global WIDTH, HEIGHT
@@ -165,16 +170,22 @@ def main():
                             earth_scale -= 0.1
 
         try:
-            earth_data = requests.get("http://127.0.0.1:8001/earth_data/").json()
-            satellites_data = requests.get("http://127.0.0.1:8001/satellite_positions/").json()
-            simulated_time = get_simulated_time()
-        except requests.RequestException as e:
-            print(f"Error fetching data: {e}")
+            earth_data, _ = fetch_from_backend("earth_data/")
+            all_satellites_data = []
+            for port in backend_ports:
+                satellites_data, _ = fetch_from_backend(f"satellite_positions/")
+                if satellites_data:
+                    all_satellites_data.append(satellites_data)
+
+            simulated_time, _ = fetch_from_backend("simulated_time/")
+            simulated_time = simulated_time['current_simulated_time']
+        except Exception as e:
+            print(f"Error: {e}")
             earth_data = {"radius_km": 6371}
-            satellites_data = [{"name": "Unknown", "x": 0, "y": 0, "z": 0}]
+            all_satellites_data = [[{"name": "Unknown", "x": 0, "y": 0, "z": 0}]]
             simulated_time = "Error"
 
-        draw_earth_and_satellites(earth_image, earth_data, satellites_data, simulated_time, buttons, earth_scale, time_scale)
+        draw_earth_and_satellites(earth_image, earth_data, all_satellites_data, simulated_time, buttons, earth_scale, time_scale)
 
     pygame.quit()
 
