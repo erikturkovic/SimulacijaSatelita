@@ -24,7 +24,7 @@ class SatelliteData(BaseModel):
     x: float
     y: float
     z: float
-    orbit_type: str  # Add orbit_type to the model
+    orbit_type: str 
 
 class TimeData(BaseModel):
     current_simulated_time: str
