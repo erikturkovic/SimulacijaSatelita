@@ -24,6 +24,7 @@ class SatelliteData(BaseModel):
     x: float
     y: float
     z: float
+    orbit_type: str  # Add orbit_type to the model
 
 class TimeData(BaseModel):
     current_simulated_time: str
@@ -82,7 +83,7 @@ async def get_satellite_positions() -> list[SatelliteData]:
             y = x_initial * math.sin(angle) + y_initial * math.cos(angle)
             z = z_initial
 
-        satellite_positions.append(SatelliteData(name=name, x=x, y=y, z=z))
+        satellite_positions.append(SatelliteData(name=name, x=x, y=y, z=z, orbit_type=orbit_type))
 
     return satellite_positions
 
