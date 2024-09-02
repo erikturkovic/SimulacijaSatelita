@@ -65,9 +65,9 @@ async def get_satellite_positions() -> list[SatelliteData]:
 
         angle = direction * (simulated_seconds % orbital_period) * 2 * math.pi / orbital_period
 
-        x = (EARTH_RADIUS_KM + 400) * math.cos(angle)
-        y = (EARTH_RADIUS_KM + 400) * math.sin(angle)
-        z = z_initial
+        x = x_initial * math.cos(angle) - y_initial * math.sin(angle)
+        y = x_initial * math.sin(angle) + y_initial * math.cos(angle)
+        z = z_initial  
 
         satellite_positions.append(SatelliteData(name=name, x=x, y=y, z=z))
 
