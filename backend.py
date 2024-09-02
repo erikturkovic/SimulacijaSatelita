@@ -1,31 +1,25 @@
-from fastapi import FastAPI, Query, Depends
+from fastapi import FastAPI, Query, HTTPException
 from fastapi.responses import FileResponse
-from sqlalchemy.orm import Session
 from pydantic import BaseModel
 import math
 import time
 from datetime import datetime, timedelta
 from pathlib import Path
-from database import engine, SessionLocal, Satellite, database
+import sqlite3
 
 app = FastAPI()
 
+# Constants
 EARTH_RADIUS_KM = 6371
 EARTH_MASS_KG = 5.972e24
 EARTH_GRAVITY = 9.81
-SATELLITE_ORBIT_RADIUS_KM = EARTH_RADIUS_KM + 400
 
 TIME_SCALE = 1000
 START_TIME = datetime.utcnow()
 LAST_UPDATE_TIME = time.time()
 simulated_seconds = 0
 
-def get_db():
-    db = SessionLocal()
-    try:
-        yield db
-    finally:
-        db.close()
+DATABASE_PATH = "database.db"
 
 class EarthData(BaseModel):
     radius_km: float
@@ -40,13 +34,20 @@ class SatelliteData(BaseModel):
 class TimeData(BaseModel):
     current_simulated_time: str
 
-@app.on_event("startup")
-async def startup():
-    await database.connect()
-
-@app.on_event("shutdown")
-async def shutdown():
-    await database.disconnect()
+def get_satellite_from_db():
+    """Fetch the satellite's initial position from the database."""
+    try:
+        conn = sqlite3.connect(DATABASE_PATH)
+        cursor = conn.cursor()
+        cursor.execute("SELECT x, y, z FROM satellites WHERE id = 1")
+        satellite = cursor.fetchone()
+        conn.close()
+        if satellite:
+            return satellite
+        else:
+            raise HTTPException(status_code=404, detail="Satellite not found in the database.")
+    except sqlite3.Error as e:
+        raise HTTPException(status_code=500, detail=f"Database error: {e}")
 
 @app.get("/earth_data/")
 def get_earth_data() -> EarthData:
@@ -57,27 +58,30 @@ def get_earth_data() -> EarthData:
     )
 
 @app.get("/satellite_position/")
-async def get_satellite_position(db: Session = Depends(get_db)) -> SatelliteData:
+async def get_satellite_position() -> SatelliteData:
     global simulated_seconds, LAST_UPDATE_TIME
     
+    satellite = get_satellite_from_db()
+    if satellite is None:
+        raise HTTPException(status_code=404, detail="Satellite not found.")
+    
+    x_initial, y_initial, z_initial = satellite
+
     current_real_time = time.time()
     delta_real_time = current_real_time - LAST_UPDATE_TIME
-
     simulated_seconds += delta_real_time * TIME_SCALE
-    
     LAST_UPDATE_TIME = current_real_time
 
-    orbital_period = 5400
-    angle = (simulated_seconds % orbital_period) * 2 * math.pi / orbital_period
-    x = SATELLITE_ORBIT_RADIUS_KM * math.cos(angle)
-    y = SATELLITE_ORBIT_RADIUS_KM * math.sin(angle)
-    z = 0
 
-    new_satellite = Satellite(x=x, y=y, z=z, created_at=datetime.utcnow())
-    db.add(new_satellite)
-    db.commit()
-    
+    orbital_period = 5400  
+    angle = (simulated_seconds % orbital_period) * 2 * math.pi / orbital_period
+
+    x = (EARTH_RADIUS_KM + 400) * math.cos(angle)
+    y = (EARTH_RADIUS_KM + 400) * math.sin(angle)
+    z = z_initial
+
     return SatelliteData(x=x, y=y, z=z)
+
 
 @app.get("/simulated_time/")
 def get_simulated_time() -> TimeData:
@@ -103,9 +107,3 @@ def set_time_scale(scale: float = Query(..., description="Multiplier for the tim
 @app.get("/earth_image/")
 async def get_earth_image():
     return FileResponse(Path("pngs/earth.png"))
-
-@app.get("/satellites/")
-async def get_all_satellites():
-    query = Satellite.__table__.select()
-    results = await database.fetch_all(query)
-    return results
