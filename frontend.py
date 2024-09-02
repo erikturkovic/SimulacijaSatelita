@@ -17,38 +17,49 @@ FONT = pygame.font.SysFont("Consolas", 16)
 
 VIEW_DISTANCE = 500
 DEFAULT_TIME_SCALE = 1
+DEFAULT_EARTH_SCALE = 1.0
 
-def draw_earth_and_satellite(earth_data, satellite_data, simulated_time):
+def draw_earth_and_satellite(earth_data, satellite_data, simulated_time, buttons, earth_scale, time_scale):
     global WIDTH, HEIGHT
     WIN.fill((0, 0, 0))
 
     earth_x = WIDTH // 2
     earth_y = HEIGHT // 2
-    earth_radius = int(earth_data['radius_km'] * 0.02)
-    pygame.draw.circle(WIN, BLUE, (earth_x, earth_y), earth_radius)
+    actual_earth_radius = earth_data['radius_km']
+    scaled_earth_radius = actual_earth_radius * earth_scale
+    display_earth_radius = int(scaled_earth_radius * 0.02)
+    pygame.draw.circle(WIN, BLUE, (earth_x, earth_y), display_earth_radius)
 
     x = satellite_data['x']
     y = satellite_data['y']
     z = satellite_data['z']
 
     scale = VIEW_DISTANCE / (VIEW_DISTANCE + z)
-    satellite_screen_x = int(earth_x + x * scale * 0.02)
-    satellite_screen_y = int(earth_y - y * scale * 0.02) 
+    satellite_screen_x = int(earth_x + x * scale * 0.02 * earth_scale)
+    satellite_screen_y = int(earth_y - y * scale * 0.02 * earth_scale)
 
     pygame.draw.circle(WIN, RED, (satellite_screen_x, satellite_screen_y), 5)
 
-    time_text = FONT.render(simulated_time, True, WHITE)
-    WIN.blit(time_text, (10, 10))
+    time_text = FONT.render(f"Simulated Time: {simulated_time}", True, WHITE)
+    scale_text = FONT.render(f"Earth Radius: {scaled_earth_radius:.2f} km", True, WHITE)
+    speed_text = FONT.render(f"Time Scale: {time_scale:.2f}", True, WHITE)
 
-    draw_button(WIN, "Speed Up", 10, 50)
-    draw_button(WIN, "Slow Down", 10, 100)
-    real_time_button = draw_button(WIN, "Real Time", 10, 150)  
+    text_x = 10
+    text_y = 10
+    WIN.blit(time_text, (text_x, text_y))
+    WIN.blit(scale_text, (text_x, text_y + 20))
+    WIN.blit(speed_text, (text_x, text_y + 40))
+
+    for button in buttons:
+        draw_button(WIN, button['text'], button['rect'])
 
     pygame.display.update()
 
-def draw_button(win, text, x, y):
+
+
+
+def draw_button(win, text, button_rect):
     mouse = pygame.mouse.get_pos()
-    button_rect = pygame.Rect(x, y, 120, 40)
 
     if button_rect.collidepoint(mouse):
         pygame.draw.rect(win, BUTTON_HOVER_COLOR, button_rect)
@@ -56,17 +67,25 @@ def draw_button(win, text, x, y):
         pygame.draw.rect(win, BUTTON_COLOR, button_rect)
 
     text_surface = FONT.render(text, True, (0, 0, 0))
-    win.blit(text_surface, (x + (120 - text_surface.get_width()) // 2, y + (40 - text_surface.get_height()) // 2))
-
-    return button_rect
+    win.blit(text_surface, (button_rect.x + (button_rect.width - text_surface.get_width()) // 2,
+                            button_rect.y + (button_rect.height - text_surface.get_height()) // 2))
 
 def set_time_scale(scale):
-    response = requests.post(f"http://127.0.0.1:8000/set_time_scale/?scale={scale}")
-    print(response.json())
+    try:
+        response = requests.post(f"http://127.0.0.1:8000/set_time_scale/?scale={scale}")
+        response.raise_for_status()
+        print(response.json())
+    except requests.RequestException as e:
+        print(f"Error setting time scale: {e}")
 
 def get_simulated_time():
-    response = requests.get("http://127.0.0.1:8000/simulated_time/")
-    return response.json()['current_simulated_time']
+    try:
+        response = requests.get("http://127.0.0.1:8000/simulated_time/")
+        response.raise_for_status()
+        return response.json()['current_simulated_time']
+    except requests.RequestException as e:
+        print(f"Error getting simulated time: {e}")
+        return "Error"
 
 def main():
     global WIDTH, HEIGHT
@@ -74,7 +93,16 @@ def main():
     clock = pygame.time.Clock()
 
     time_scale = DEFAULT_TIME_SCALE
+    earth_scale = DEFAULT_EARTH_SCALE
     set_time_scale(time_scale)
+
+    buttons = [
+        {"text": "Speed Up", "rect": pygame.Rect(10, 100, 120, 40)},
+        {"text": "Slow Down", "rect": pygame.Rect(10, 150, 120, 40)},
+        {"text": "Real Time", "rect": pygame.Rect(10, 200, 120, 40)},
+        {"text": "Increase Size", "rect": pygame.Rect(10, 250, 120, 40)},
+        {"text": "Decrease Size", "rect": pygame.Rect(10, 300, 120, 40)}
+    ]
 
     while run:
         clock.tick(60)
@@ -87,25 +115,34 @@ def main():
                 WIN = pygame.display.set_mode((WIDTH, HEIGHT), pygame.RESIZABLE)
             elif event.type == pygame.MOUSEBUTTONDOWN:
                 mouse_pos = pygame.mouse.get_pos()
-                if speed_up_button.collidepoint(mouse_pos):
-                    time_scale *= 2
-                    set_time_scale(time_scale)
-                elif slow_down_button.collidepoint(mouse_pos):
-                    time_scale /= 2
-                    set_time_scale(time_scale)
-                elif real_time_button.collidepoint(mouse_pos):  
-                    time_scale = DEFAULT_TIME_SCALE
-                    set_time_scale(time_scale)
+                for button in buttons:
+                    if button['rect'].collidepoint(mouse_pos):
+                        if button['text'] == "Speed Up":
+                            time_scale *= 2
+                            set_time_scale(time_scale)
+                        elif button['text'] == "Slow Down":
+                            time_scale /= 2
+                            set_time_scale(time_scale)
+                        elif button['text'] == "Real Time":
+                            time_scale = DEFAULT_TIME_SCALE
+                            set_time_scale(time_scale)
+                        elif button['text'] == "Increase Size":
+                            earth_scale += 0.1  
+                        elif button['text'] == "Decrease Size":
+                            earth_scale -= 0.1  
 
-        earth_data = requests.get("http://127.0.0.1:8000/earth_data/").json()
-        satellite_data = requests.get("http://127.0.0.1:8000/satellite_position/").json()
-        simulated_time = get_simulated_time()
+        try:
+            earth_data = requests.get("http://127.0.0.1:8000/earth_data/").json()
+            satellite_data = requests.get("http://127.0.0.1:8000/satellite_position/").json()
+            simulated_time = get_simulated_time()
+        except requests.RequestException as e:
+            print(f"Error fetching data: {e}")
+            earth_data = {"radius_km": 6371}
+            satellite_data = {"x": 0, "y": 0, "z": 0}
+            simulated_time = "Error"
 
-        draw_earth_and_satellite(earth_data, satellite_data, simulated_time)
+        draw_earth_and_satellite(earth_data, satellite_data, simulated_time, buttons, earth_scale, time_scale)
 
-        speed_up_button = pygame.Rect(10, 50, 120, 40)
-        slow_down_button = pygame.Rect(10, 100, 120, 40)
-        real_time_button = pygame.Rect(10, 150, 120, 40)  
     pygame.quit()
 
 if __name__ == "__main__":
