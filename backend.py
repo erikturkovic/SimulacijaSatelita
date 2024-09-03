@@ -1,4 +1,4 @@
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Request
 from pydantic import BaseModel
 import math
 import time
@@ -11,8 +11,10 @@ app = FastAPI()
 
 EARTH_RADIUS_KM = 6371
 TIME_SCALE = 1000
-DATABASE_PATH = "database.db"
+START_TIME = datetime.utcnow()
 LAST_UPDATE_TIME = time.time()
+simulated_seconds = 0
+DATABASE_PATH = "database.db"
 
 class EarthData(BaseModel):
     radius_km: float
@@ -33,20 +35,6 @@ class CombinedData(BaseModel):
     satellite_positions: list[SatelliteData]
     current_simulated_time: str
 
-def get_shared_start_time():
-    try:
-        conn = sqlite3.connect(DATABASE_PATH)
-        cursor = conn.cursor()
-        cursor.execute("SELECT start_time FROM simulation_time WHERE id = 1")
-        result = cursor.fetchone()
-        conn.close()
-        if result:
-            return datetime.strptime(result[0], "%Y-%m-%d %H:%M:%S")
-        else:
-            raise HTTPException(status_code=500, detail="Shared start time not found.")
-    except sqlite3.Error as e:
-        raise HTTPException(status_code=500, detail=f"Database error: {e}")
-    
 def get_all_satellites_from_db():
     try:
         conn = sqlite3.connect(DATABASE_PATH)
@@ -58,32 +46,20 @@ def get_all_satellites_from_db():
     except sqlite3.Error as e:
         raise HTTPException(status_code=500, detail=f"Database error: {e}")
 
-def load_simulation_state():
-    try:
-        conn = sqlite3.connect(DATABASE_PATH)
-        cursor = conn.cursor()
-        cursor.execute("SELECT last_simulated_seconds FROM simulation_time WHERE id = 1")
-        result = cursor.fetchone()
-        conn.close()
-        if result and result[0] is not None:
-            return result[0]
-        else:
-            return 0
-    except sqlite3.Error as e:
-        raise HTTPException(status_code=500, detail=f"Database error: {e}")
+def update_simulation_time(new_time_seconds: float):
+    global simulated_seconds, LAST_UPDATE_TIME
+    simulated_seconds = new_time_seconds
+    LAST_UPDATE_TIME = time.time()
 
-def update_simulation_state(simulated_seconds):
-    try:
-        conn = sqlite3.connect(DATABASE_PATH)
-        cursor = conn.cursor()
-        cursor.execute("UPDATE simulation_time SET last_simulated_seconds = ? WHERE id = 1", (simulated_seconds,))
-        conn.commit()
-        conn.close()
-    except sqlite3.Error as e:
-        raise HTTPException(status_code=500, detail=f"Database error: {e}")
-
-simulated_seconds = load_simulation_state()
-START_TIME = get_shared_start_time()
+@app.post("/update_simulation_time/")
+async def update_simulation_time_endpoint(request: Request):
+    data = await request.json()
+    time_seconds = data.get("time_seconds")
+    if time_seconds is not None:
+        update_simulation_time(time_seconds)
+        return {"message": "Simulation time updated", "time_seconds": time_seconds}
+    else:
+        raise HTTPException(status_code=400, detail="Invalid time_seconds value")
 
 @app.get("/earth_data/")
 def get_earth_data() -> EarthData:
@@ -163,6 +139,23 @@ async def get_earth_image():
 @app.post("/shutdown/")
 def shutdown():
     global simulated_seconds
-    update_simulation_state(simulated_seconds)
+    try:
+        conn = sqlite3.connect(DATABASE_PATH)
+        cursor = conn.cursor()
+        cursor.execute("UPDATE simulation_time SET last_simulated_seconds = ? WHERE id = 1", (simulated_seconds,))
+        conn.commit()
+        conn.close()
+    except sqlite3.Error as e:
+        raise HTTPException(status_code=500, detail=f"Database error: {e}")
+
+    # Send POST request to update other instances with the last simulated time
+    import requests
+    for port in range(8001, 8006):
+        if port != int(os.getenv("PORT", 8001)):
+            try:
+                requests.post(f"http://127.0.0.1:{port}/update_simulation_time/", json={"time_seconds": simulated_seconds})
+            except requests.RequestException:
+                pass
+
     os.kill(os.getpid(), signal.SIGINT)
     return {"message": "Shutting down..."}
