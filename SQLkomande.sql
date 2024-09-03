@@ -26,13 +26,14 @@ SET orbital_period = 5400
 WHERE id = 1;  
 
 
-INSERT INTO satellites (name, x, y, z, orbital_period)
+INSERT INTO satellites (name, x, y, z, orbital_period, direction)
 VALUES (
-    'SOPRANO',
+    'PIETY',
     7000,  
     0,
     0,
-    3600
+    3600,
+    -1
 );
 
 UPDATE satellites
@@ -54,11 +55,11 @@ ADD COLUMN direction INTEGER NOT NULL DEFAULT 1;
 
 INSERT INTO satellites (name, x, y, z, orbital_period)
 VALUES (
-    'MECHA',
-    12000,  
+    'LUNARIS',
+    8000,  
     0,
     0,
-    7000
+    1200
 );
 
 INSERT INTO satellites (name, x, y, z, orbital_period, direction)

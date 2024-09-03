@@ -23,29 +23,23 @@ DEFAULT_EARTH_SCALE = 1.0
 MIN_EARTH_SCALE = 0.1
 
 satellite_colors = {}
-backend_ports = list(range(8001, 8006))  
-active_ports = set(backend_ports)  #
+backend_ports = list(range(8001, 8006))
+active_ports = set(backend_ports)
 
 def get_random_color():
     return (random.randint(0, 255), random.randint(0, 255), random.randint(0, 255))
 
-def fetch_from_all_backends(endpoint):
+def fetch_from_backend(endpoint, retries=1, delay=0.1):
     global active_ports
-    data = None
     for port in list(active_ports):
         try:
-            response = requests.get(f"http://127.0.0.1:{port}/{endpoint}", timeout=5)
+            response = requests.get(f"http://127.0.0.1:{port}/{endpoint}", timeout=1)
             response.raise_for_status()
-            data = response.json() 
+            return response.json(), port
         except requests.RequestException as e:
             print(f"Error fetching data from port {port}: {e}")
-            active_ports.discard(port)  
-
-    if data is None:
-        raise Exception(f"Failed to fetch {endpoint} from all backends.")
-    
-    return data
-
+            active_ports.discard(port)  # Remove inactive ports
+    return None, None
 
 def draw_earth_and_satellites(earth_image, earth_data, all_satellites_data, simulated_time, buttons, earth_scale, time_scale):
     global WIDTH, HEIGHT
@@ -67,29 +61,28 @@ def draw_earth_and_satellites(earth_image, earth_data, all_satellites_data, simu
 
     displayed_satellites = set()
 
-    for satellites_data in all_satellites_data:
-        for satellite_data in satellites_data:
-            name = satellite_data['name']
+    for satellite_data in all_satellites_data:
+        name = satellite_data['name']
 
-            if name in displayed_satellites:
-                continue
+        if name in displayed_satellites:
+            continue
 
-            x = satellite_data['x']
-            y = satellite_data['y']
-            z = satellite_data['z']
+        x = satellite_data['x']
+        y = satellite_data['y']
+        z = satellite_data['z']
 
-            if name not in satellite_colors:
-                satellite_colors[name] = get_random_color()
+        if name not in satellite_colors:
+            satellite_colors[name] = get_random_color()
 
-            color = satellite_colors[name]
+        color = satellite_colors[name]
 
-            scale = VIEW_DISTANCE / (VIEW_DISTANCE + z)
-            satellite_screen_x = int(earth_x + x * scale * 0.02 * earth_scale)
-            satellite_screen_y = int(earth_y - y * scale * 0.02 * earth_scale)
+        scale = VIEW_DISTANCE / (VIEW_DISTANCE + z)
+        satellite_screen_x = int(earth_x + x * scale * 0.02 * earth_scale)
+        satellite_screen_y = int(earth_y - y * scale * 0.02 * earth_scale)
 
-            pygame.draw.circle(WIN, color, (satellite_screen_x, satellite_screen_y), 5)
+        pygame.draw.circle(WIN, color, (satellite_screen_x, satellite_screen_y), 5)
 
-            displayed_satellites.add(name)
+        displayed_satellites.add(name)
 
     time_text = FONT.render(f"Simulated Time: {simulated_time}", True, WHITE)
     scale_text = FONT.render(f"Earth Radius: {scaled_earth_radius:.2f} km", True, WHITE)
@@ -205,19 +198,18 @@ def main():
                             print(f"Instance {button['text']} button clicked.")
 
         try:
-            earth_data = fetch_from_all_backends("earth_data/")
-            all_satellites_data = []
-            for port in active_ports:
-                satellites_data = fetch_from_all_backends(f"satellite_positions/")
-                if satellites_data:
-                    all_satellites_data.append(satellites_data)
+            combined_data, _ = fetch_from_backend("combined_data/")
+            if combined_data is None:
+                raise Exception("Failed to fetch combined data.")
 
-            simulated_time = fetch_from_all_backends("simulated_time/")
-            simulated_time = simulated_time['current_simulated_time']
+            earth_data = combined_data['earth_data']
+            all_satellites_data = combined_data['satellite_positions']
+            simulated_time = combined_data['current_simulated_time']
+            
         except Exception as e:
             print(f"Error: {e}")
             earth_data = {"radius_km": 6371}
-            all_satellites_data = [[{"name": "Unknown", "x": 0, "y": 0, "z": 0}]]
+            all_satellites_data = [{"name": "Unknown", "x": 0, "y": 0, "z": 0}]
             simulated_time = "Error"
 
         draw_earth_and_satellites(earth_image, earth_data, all_satellites_data, simulated_time, buttons, earth_scale, time_scale)
