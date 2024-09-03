@@ -6,6 +6,7 @@ from datetime import datetime, timedelta
 import sqlite3
 import os
 import signal
+import sys
 
 app = FastAPI()
 
@@ -148,7 +149,6 @@ def shutdown():
     except sqlite3.Error as e:
         raise HTTPException(status_code=500, detail=f"Database error: {e}")
 
-    # Send POST request to update other instances with the last simulated time
     import requests
     for port in range(8001, 8006):
         if port != int(os.getenv("PORT", 8001)):
@@ -157,5 +157,44 @@ def shutdown():
             except requests.RequestException:
                 pass
 
-    os.kill(os.getpid(), signal.SIGINT)
+    print("Shutting down the server...")
+
+    pid = os.getpid() 
+    os.kill(pid, signal.SIGTERM)  
+
     return {"message": "Shutting down..."}
+
+def save_simulation_state():
+    global simulated_seconds
+    try:
+        conn = sqlite3.connect(DATABASE_PATH)
+        cursor = conn.cursor()
+        cursor.execute("UPDATE simulation_time SET last_simulated_seconds = ? WHERE id = 1", (simulated_seconds,))
+        conn.commit()
+        conn.close()
+        print(f"Simulation state saved with {simulated_seconds} seconds.")
+    except sqlite3.Error as e:
+        raise HTTPException(status_code=500, detail=f"Database error: {e}")
+
+def shutdown_server():
+    pid = os.getpid()  
+    os.kill(pid, signal.SIGTERM)  
+
+def handle_shutdown_signal(signum, frame):
+    print("Received shutdown signal. Saving state and shutting down...")
+    save_simulation_state()
+    shutdown_server()
+
+
+signal.signal(signal.SIGINT, handle_shutdown_signal)
+signal.signal(signal.SIGTERM, handle_shutdown_signal)
+
+@app.post("/shutdown/")
+def shutdown():
+    handle_shutdown_signal(None, None)
+    return {"message": "Shutting down..."}
+
+@app.get("/save_state/")
+def save_state():
+    save_simulation_state()
+    return {"message": "State saved."}

@@ -36,7 +36,6 @@ def send_shutdown_request(port):
         print(f"Error shutting down instance on port {port}: {e}")
         return False
 
-
 def get_random_color():
     return (random.randint(0, 255), random.randint(0, 255), random.randint(0, 255))
 
@@ -49,7 +48,7 @@ def fetch_from_backend(endpoint, retries=1, delay=0.1):
             return response.json(), port
         except requests.RequestException as e:
             print(f"Error fetching data from port {port}: {e}")
-            active_ports.discard(port) 
+            active_ports.discard(port)
     return None, None
 
 def draw_earth_and_satellites(earth_image, earth_data, all_satellites_data, simulated_time, buttons, earth_scale, time_scale):
@@ -208,7 +207,13 @@ def main():
                             port = button['port']
                             if send_shutdown_request(port):
                                 button['color'] = (100, 100, 100) 
-                                active_ports.discard(port)  
+                                active_ports.discard(port)
+                                
+                                if active_ports:
+                                    print(f"Switching to another active port: {list(active_ports)[0]}")
+                                else:
+                                    print("No active ports remaining, shutting down simulation.")
+                                    run = False
 
         try:
             combined_data, _ = fetch_from_backend("combined_data/")
@@ -231,4 +236,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
