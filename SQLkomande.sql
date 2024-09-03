@@ -22,8 +22,8 @@ VALUES (
 );
 
 UPDATE satellites
-SET orbital_period = 5400 
-WHERE id = 1;  
+SET orbital_period = 1600
+WHERE id = 12;  
 
 
 INSERT INTO satellites (name, x, y, z, orbital_period, direction)
@@ -85,3 +85,16 @@ INSERT INTO satellites (name, x, y, z, orbital_period, direction, orbit_type)
 VALUES ('YZ', 0, 7000, 0, 5400, 1, 'YZ');
 
 DELETE FROM satellites WHERE name = 'LEO';
+
+
+CREATE TABLE simulation_time (
+    id INTEGER PRIMARY KEY,
+    start_time TEXT NOT NULL,
+    last_simulated_seconds REAL DEFAULT 0
+);
+
+DROP TABLE IF EXISTS simulation_time;
+
+INSERT INTO simulation_time (id, last_simulated_seconds) VALUES (1, 0);
+
+SELECT * FROM simulation_time

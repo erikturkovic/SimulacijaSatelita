@@ -26,6 +26,17 @@ satellite_colors = {}
 backend_ports = list(range(8001, 8006))
 active_ports = set(backend_ports)
 
+def send_shutdown_request(port):
+    try:
+        response = requests.post(f"http://127.0.0.1:{port}/shutdown/")
+        response.raise_for_status()
+        print(f"Instance on port {port} shut down.")
+        return True
+    except requests.RequestException as e:
+        print(f"Error shutting down instance on port {port}: {e}")
+        return False
+
+
 def get_random_color():
     return (random.randint(0, 255), random.randint(0, 255), random.randint(0, 255))
 
@@ -38,7 +49,7 @@ def fetch_from_backend(endpoint, retries=1, delay=0.1):
             return response.json(), port
         except requests.RequestException as e:
             print(f"Error fetching data from port {port}: {e}")
-            active_ports.discard(port)  # Remove inactive ports
+            active_ports.discard(port) 
     return None, None
 
 def draw_earth_and_satellites(earth_image, earth_data, all_satellites_data, simulated_time, buttons, earth_scale, time_scale):
@@ -136,7 +147,7 @@ def set_time_scale(scale):
             active_ports.discard(port)
 
 def main():
-    global WIDTH, HEIGHT
+    global WIDTH, HEIGHT, active_ports
     run = True
     clock = pygame.time.Clock()
 
@@ -156,11 +167,11 @@ def main():
     ]
 
     instance_buttons = [
-        {"text": "1", "rect": pygame.Rect(10, HEIGHT - 60, 40, 40), "color": INSTANCE_BUTTON_COLOR},
-        {"text": "2", "rect": pygame.Rect(60, HEIGHT - 60, 40, 40), "color": INSTANCE_BUTTON_COLOR},
-        {"text": "3", "rect": pygame.Rect(110, HEIGHT - 60, 40, 40), "color": INSTANCE_BUTTON_COLOR},
-        {"text": "4", "rect": pygame.Rect(160, HEIGHT - 60, 40, 40), "color": INSTANCE_BUTTON_COLOR},
-        {"text": "5", "rect": pygame.Rect(210, HEIGHT - 60, 40, 40), "color": INSTANCE_BUTTON_COLOR},
+        {"text": "1", "rect": pygame.Rect(10, HEIGHT - 60, 40, 40), "color": INSTANCE_BUTTON_COLOR, "port": 8001},
+        {"text": "2", "rect": pygame.Rect(60, HEIGHT - 60, 40, 40), "color": INSTANCE_BUTTON_COLOR, "port": 8002},
+        {"text": "3", "rect": pygame.Rect(110, HEIGHT - 60, 40, 40), "color": INSTANCE_BUTTON_COLOR, "port": 8003},
+        {"text": "4", "rect": pygame.Rect(160, HEIGHT - 60, 40, 40), "color": INSTANCE_BUTTON_COLOR, "port": 8004},
+        {"text": "5", "rect": pygame.Rect(210, HEIGHT - 60, 40, 40), "color": INSTANCE_BUTTON_COLOR, "port": 8005},
     ]
 
     buttons.extend(instance_buttons)
@@ -194,8 +205,10 @@ def main():
                         elif button['text'] == "Decrease Size":
                             earth_scale = max(earth_scale - 0.1, MIN_EARTH_SCALE)
                         elif button['text'] in {"1", "2", "3", "4", "5"}:
-                            button['color'] = (100, 100, 100)
-                            print(f"Instance {button['text']} button clicked.")
+                            port = button['port']
+                            if send_shutdown_request(port):
+                                button['color'] = (100, 100, 100) 
+                                active_ports.discard(port)  
 
         try:
             combined_data, _ = fetch_from_backend("combined_data/")
@@ -218,3 +231,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+
