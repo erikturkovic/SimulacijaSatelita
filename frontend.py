@@ -118,21 +118,23 @@ def draw_earth_and_satellites(earth_image, earth_data, all_satellites_data, simu
         list_y += 20
 
     for button in buttons:
-        draw_button(WIN, button['text'], button['rect'], button['color'])
+        if button['rect']:
+            draw_button(WIN, button['text'], button['rect'], button['color'])
 
     pygame.display.update()
 
 def draw_button(win, text, button_rect, color):
-    mouse = pygame.mouse.get_pos()
+    if button_rect: 
+        mouse = pygame.mouse.get_pos()
 
-    if button_rect.collidepoint(mouse):
-        pygame.draw.rect(win, BUTTON_HOVER_COLOR, button_rect)
-    else:
-        pygame.draw.rect(win, color, button_rect)
+        if button_rect.collidepoint(mouse):
+            pygame.draw.rect(win, BUTTON_HOVER_COLOR, button_rect)
+        else:
+            pygame.draw.rect(win, color, button_rect)
 
-    text_surface = FONT.render(text, True, (0, 0, 0))
-    win.blit(text_surface, (button_rect.x + (button_rect.width - text_surface.get_width()) // 2,
-                            button_rect.y + (button_rect.height - text_surface.get_height()) // 2))
+        text_surface = FONT.render(text, True, (0, 0, 0))
+        win.blit(text_surface, (button_rect.x + (button_rect.width - text_surface.get_width()) // 2,
+                                button_rect.y + (button_rect.height - text_surface.get_height()) // 2))
 
 def set_time_scale(scale):
     global active_ports
@@ -188,8 +190,8 @@ def main():
                     button['rect'].y = HEIGHT - 60
             elif event.type == pygame.MOUSEBUTTONDOWN:
                 mouse_pos = pygame.mouse.get_pos()
-                for button in buttons:
-                    if button['rect'].collidepoint(mouse_pos):
+                for button in buttons[:]:
+                    if button['rect'] and button['rect'].collidepoint(mouse_pos):
                         if button['text'] == "Speed Up":
                             time_scale *= 2
                             set_time_scale(time_scale)
@@ -206,7 +208,7 @@ def main():
                         elif button['text'] in {"1", "2", "3", "4", "5"}:
                             port = button['port']
                             if send_shutdown_request(port):
-                                button['color'] = (100, 100, 100) 
+                                button['rect'] = None 
                                 active_ports.discard(port)
                                 
                                 if active_ports:
