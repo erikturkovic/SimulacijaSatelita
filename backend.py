@@ -133,10 +133,6 @@ def set_time_scale(scale: float):
     
     return {"message": f"Time scale set to {TIME_SCALE}"}
 
-@app.get("/earth_image/")
-async def get_earth_image():
-    return FileResponse("pngs/earth.png")
-
 @app.post("/shutdown/")
 def shutdown():
     global simulated_seconds
